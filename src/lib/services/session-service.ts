@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { resolveSelectedModels } from "@/lib/models/catalog";
 import { buildCPIR } from "@/lib/router";
 import { createSessionSchema, postMessageSchema } from "@/lib/schemas";
+import { asInputJson } from "@/lib/utils/prisma-json";
 
 export async function listSessions() {
   return prisma.session.findMany({
@@ -104,10 +105,9 @@ export async function createMessageAndRun(sessionId: string, input: unknown) {
       mode: payload.mode as RunMode,
       userMessageId: userMessage.id,
       selectedModelIds: selectedModels.map((model) => model.modelId),
-      preferencesJson: preferences,
-      cpirJson: cpir,
-      contextPackJson: cpir.contextPack,
-      routerDecisionJson: null,
+      preferencesJson: asInputJson(preferences),
+      cpirJson: asInputJson(cpir),
+      contextPackJson: asInputJson(cpir.contextPack),
       status: RunStatus.PENDING
     }
   });

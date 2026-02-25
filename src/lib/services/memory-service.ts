@@ -1,6 +1,7 @@
 import { MemoryItemType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { createMemorySchema, patchMemorySchema } from "@/lib/schemas";
+import { asInputJson } from "@/lib/utils/prisma-json";
 
 export async function listMemoryBySession(sessionId: string) {
   return prisma.memoryItem.findMany({
@@ -29,7 +30,7 @@ export async function createMemory(sessionId: string, input: unknown) {
       sessionId,
       type: payload.type as MemoryItemType,
       key: payload.key,
-      value: payload.value,
+      value: asInputJson(payload.value),
       confidence: payload.confidence ?? 0.5,
       enabled: payload.enabled ?? true
     }
@@ -46,7 +47,7 @@ export async function patchMemory(memoryId: string, input: unknown) {
     data: {
       ...(payload.enabled !== undefined ? { enabled: payload.enabled } : {}),
       ...(payload.confidence !== undefined ? { confidence: payload.confidence } : {}),
-      ...(payload.value !== undefined ? { value: payload.value } : {})
+      ...(payload.value !== undefined ? { value: asInputJson(payload.value) } : {})
     }
   });
 }

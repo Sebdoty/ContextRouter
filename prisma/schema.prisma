@@ -94,7 +94,7 @@ model Run {
   id                String    @id @default(cuid())
   sessionId         String
   mode              RunMode
-  userMessageId     String?
+  userMessageId     String?   @unique
   selectedModelIds  String[]  @default([])
   preferencesJson   Json?
   cpirJson          Json
@@ -112,6 +112,7 @@ model Run {
   userMessage Message?  @relation("UserMessageRun", fields: [userMessageId], references: [id], onDelete: SetNull)
   steps       Step[]
   artifacts   Artifact[]
+  sourceMemoryItems MemoryItem[] @relation("RunSourceMemory")
 
   @@index([sessionId, createdAt])
   @@index([status])
@@ -173,7 +174,7 @@ model MemoryItem {
   updatedAt   DateTime       @updatedAt
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  sourceRun Run?  @relation(fields: [sourceRunId], references: [id], onDelete: SetNull)
+  sourceRun Run?  @relation("RunSourceMemory", fields: [sourceRunId], references: [id], onDelete: SetNull)
 
   @@index([sessionId, enabled])
   @@index([sourceRunId])

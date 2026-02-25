@@ -9,6 +9,19 @@ import { detectDisagreements, normalizeOutput } from "@/lib/parsers/outputs";
 import { resolveProvider } from "@/lib/providers";
 import { cpirSchema, preferenceSchema, routerDecisionSchema } from "@/lib/schemas";
 import { decideRoute } from "@/lib/router";
+import { asInputJson } from "@/lib/utils/prisma-json";
+
+const MODEL_EXEC_TYPES: StepType[] = [
+  StepType.MODEL_CALL,
+  StepType.DRAFT,
+  StepType.REFINE,
+  StepType.CRITIQUE,
+  StepType.COMPRESS
+];
+
+function isModelExecutionType(stepType: StepType): boolean {
+  return MODEL_EXEC_TYPES.includes(stepType);
+}
 
 function approxTokens(text: string): number {
   return Math.max(1, Math.ceil(text.length / 4));
@@ -214,9 +227,7 @@ function extractFinalAnswer(nodeOutputs: Map<string, NodeOutput>): string {
   }
 
   const latestModelOutput = [...nodeOutputs.values()]
-    .filter((item) =>
-      [StepType.MODEL_CALL, StepType.DRAFT, StepType.REFINE, StepType.CRITIQUE, StepType.COMPRESS].includes(item.type)
-    )
+    .filter((item) => isModelExecutionType(item.type))
     .pop();
 
   return latestModelOutput?.outputRaw ?? "No output generated.";
@@ -334,11 +345,7 @@ export async function executeRun(runId: string) {
               stepId,
               traceId: trace.traceId
             });
-          } else if (
-            [StepType.MODEL_CALL, StepType.DRAFT, StepType.REFINE, StepType.CRITIQUE, StepType.COMPRESS].includes(
-              node.type
-            )
-          ) {
+          } else if (isModelExecutionType(node.type)) {
             result = await executeModelNode({
               run,
               node,
@@ -362,7 +369,8 @@ export async function executeRun(runId: string) {
               modelId: result.modelId,
               renderedPrompt: result.renderedPrompt,
               outputRaw: result.outputRaw,
-              outputParsedJson: result.outputParsedJson,
+              outputParsedJson:
+                result.outputParsedJson !== undefined ? asInputJson(result.outputParsedJson) : undefined,
               status: StepStatus.DONE,
               finishedAt: new Date(),
               inputTokens: result.inputTokens,
@@ -386,7 +394,7 @@ export async function executeRun(runId: string) {
             await prisma.run.update({
               where: { id: runId },
               data: {
-                routerDecisionJson: result.outputParsedJson
+                routerDecisionJson: asInputJson(result.outputParsedJson)
               }
             });
           }
@@ -432,9 +440,9 @@ export async function executeRun(runId: string) {
           sessionId: runRecord.sessionId,
           type: "FACT",
           key: `run-${runId}-summary`,
-          value: {
+          value: asInputJson({
             summary: finalAnswer.slice(0, 260)
-          },
+          }),
           confidence: 0.5,
           sourceRunId: runId
         }

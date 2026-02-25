@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { beforeAll, beforeEach, vi } from "vitest";
 
 const dbMock = {
   message: {
@@ -9,11 +9,20 @@ const dbMock = {
   }
 };
 
-vi.mock("@/lib/db", () => ({
-  prisma: dbMock
-}));
+let compileContextPack!: typeof import("@/lib/context/compiler").compileContextPack;
 
-import { compileContextPack } from "@/lib/context/compiler";
+beforeAll(async () => {
+  vi.resetModules();
+  vi.doMock("@/lib/db", () => ({
+    prisma: dbMock
+  }));
+
+  ({ compileContextPack } = await import("@/lib/context/compiler"));
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("context compiler", () => {
   it("truncates turns and selects relevant top-K memory", async () => {

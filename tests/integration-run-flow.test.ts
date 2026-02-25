@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { beforeAll, beforeEach, vi } from "vitest";
 
 type SessionRecord = {
   id: string;
@@ -369,12 +369,28 @@ function createInMemoryPrisma() {
 
 const { prisma, state } = createInMemoryPrisma();
 
-vi.mock("@/lib/db", () => ({
-  prisma
-}));
+let executeRun!: typeof import("@/lib/engine/executor").executeRun;
+let createMessageAndRun!: typeof import("@/lib/services/session-service").createMessageAndRun;
+let createSession!: typeof import("@/lib/services/session-service").createSession;
 
-import { executeRun } from "@/lib/engine/executor";
-import { createMessageAndRun, createSession } from "@/lib/services/session-service";
+beforeAll(async () => {
+  vi.resetModules();
+  vi.doMock("@/lib/db", () => ({
+    prisma
+  }));
+
+  ({ executeRun } = await import("@/lib/engine/executor"));
+  ({ createMessageAndRun, createSession } = await import("@/lib/services/session-service"));
+});
+
+beforeEach(() => {
+  state.sessions.length = 0;
+  state.messages.length = 0;
+  state.runs.length = 0;
+  state.steps.length = 0;
+  state.artifacts.length = 0;
+  state.memoryItems.length = 0;
+});
 
 describe("integration: session -> run execution", () => {
   it("creates a run and persists steps + final artifact in mock mode", async () => {
