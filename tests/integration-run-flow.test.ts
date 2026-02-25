@@ -238,6 +238,25 @@ function createInMemoryPrisma() {
 
         Object.assign(run, data, { updatedAt: new Date() });
         return run;
+      },
+      async updateMany(args: { where: { id: string; status?: RunRecord["status"] }; data: Partial<RunRecord> }) {
+        const targets = state.runs.filter((record) => {
+          if (record.id !== args.where.id) {
+            return false;
+          }
+
+          if (args.where.status && record.status !== args.where.status) {
+            return false;
+          }
+
+          return true;
+        });
+
+        for (const run of targets) {
+          Object.assign(run, args.data, { updatedAt: new Date() });
+        }
+
+        return { count: targets.length };
       }
     },
     step: {
@@ -275,14 +294,32 @@ function createInMemoryPrisma() {
         Object.assign(step, data, { updatedAt: new Date() });
         return step;
       },
-      async findMany(args: { where: { runId?: string; status?: string } }) {
+      async findMany(args: {
+        where: {
+          runId?: string;
+          status?:
+            | string
+            | {
+                in: string[];
+              };
+        };
+      }) {
         return state.steps.filter((record) => {
           if (args.where.runId && record.runId !== args.where.runId) {
             return false;
           }
 
-          if (args.where.status && record.status !== args.where.status) {
-            return false;
+          if (args.where.status) {
+            if (typeof args.where.status === "string" && record.status !== args.where.status) {
+              return false;
+            }
+
+            if (
+              typeof args.where.status !== "string" &&
+              !args.where.status.in.includes(record.status)
+            ) {
+              return false;
+            }
           }
 
           return true;
@@ -342,6 +379,36 @@ function createInMemoryPrisma() {
         };
         state.memoryItems.push(record);
         return record;
+      },
+      async upsert(args: {
+        where: {
+          sessionId_key: {
+            sessionId: string;
+            key: string;
+          };
+        };
+        update: Partial<MemoryRecord>;
+        create: Omit<MemoryRecord, "id" | "createdAt" | "updatedAt">;
+      }) {
+        const existing = state.memoryItems.find(
+          (item) =>
+            item.sessionId === args.where.sessionId_key.sessionId &&
+            item.key === args.where.sessionId_key.key
+        );
+
+        if (existing) {
+          Object.assign(existing, args.update, { updatedAt: new Date() });
+          return existing;
+        }
+
+        const created: MemoryRecord = {
+          id: nextId("memory"),
+          ...args.create,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        state.memoryItems.push(created);
+        return created;
       },
       async update({ where, data }: { where: { id: string }; data: Partial<MemoryRecord> }) {
         const item = state.memoryItems.find((record) => record.id === where.id);
@@ -425,5 +492,29 @@ describe("integration: session -> run execution", () => {
       (message) => message.sessionId === session.id && message.role === "assistant"
     );
     expect(assistantMessage).toBeDefined();
+  });
+
+  it("is idempotent when execute is called again for the same run", async () => {
+    const session = await createSession({ title: "Idempotency session" });
+    const { run } = await createMessageAndRun(session.id, {
+      content: "Route this request and generate a final answer",
+      mode: "AUTO",
+      selectedModels: ["mock-balanced"],
+      preferences: {
+        qualityBias: 50,
+        costCapEnabled: false,
+        latencyCapEnabled: false
+      }
+    });
+
+    await executeRun(run.id);
+    const firstStepCount = state.steps.filter((step) => step.runId === run.id).length;
+
+    await executeRun(run.id);
+    const secondStepCount = state.steps.filter((step) => step.runId === run.id).length;
+
+    expect(secondStepCount).toBe(firstStepCount);
+    expect(state.artifacts.filter((artifact) => artifact.runId === run.id).length).toBe(1);
+    expect(state.memoryItems.filter((item) => item.sourceRunId === run.id).length).toBe(1);
   });
 });

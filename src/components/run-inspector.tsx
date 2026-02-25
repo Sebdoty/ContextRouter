@@ -13,6 +13,7 @@ type InspectorStep = {
   outputRaw: string;
   outputParsedJson: Record<string, unknown> | null;
   status: string;
+  errorMessage: string | null;
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
@@ -163,6 +164,11 @@ export function RunInspector({ run, steps, artifacts }: Props) {
                 </div>
               </div>
               <p className="mt-1 text-xs text-ink/65">{formatDate(step.createdAt)}</p>
+              {step.errorMessage ? (
+                <p className="mt-1 rounded border border-danger/30 bg-danger/10 px-2 py-1 text-xs text-danger">
+                  {step.errorMessage}
+                </p>
+              ) : null}
 
               <details className="mt-2 rounded-lg border border-ink/15 bg-white p-3">
                 <summary className="cursor-pointer text-sm font-medium">View details</summary>

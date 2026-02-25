@@ -36,6 +36,7 @@ export default async function RunInspectorPage({ params }: Params) {
         outputRaw: step.outputRaw,
         outputParsedJson: (step.outputParsedJson as Record<string, unknown> | null) ?? null,
         status: step.status,
+        errorMessage: step.errorMessage,
         inputTokens: step.inputTokens,
         outputTokens: step.outputTokens,
         costUsd: step.costUsd,

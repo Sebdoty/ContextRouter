@@ -50,6 +50,19 @@ export function SessionWorkbench({ sessionId, messages, runs, modelOptions }: Pr
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (typeof payload.error === "string" && payload.error.trim().length > 0) {
+        return payload.error;
+      }
+    } catch {
+      // Ignore malformed/non-JSON responses and use fallback.
+    }
+
+    return fallback;
+  }
+
   const modeInfo = useMemo(() => {
     if (mode === "AUTO") {
       return "One routed model with explainability.";
@@ -113,7 +126,7 @@ export function SessionWorkbench({ sessionId, messages, runs, modelOptions }: Pr
         });
 
         if (!messageResponse.ok) {
-          setError("Failed to create run.");
+          setError(await readErrorMessage(messageResponse, "Failed to create run."));
           return;
         }
 
@@ -124,7 +137,15 @@ export function SessionWorkbench({ sessionId, messages, runs, modelOptions }: Pr
         });
 
         if (!executeResponse.ok) {
-          setError("Run created, but execution failed.");
+          setError(await readErrorMessage(executeResponse, "Run created, but execution failed."));
+          router.refresh();
+          return;
+        }
+
+        const executePayload = (await executeResponse.json()) as { run?: { status?: string } };
+        if (executePayload.run?.status === "ERROR") {
+          setError("Run ended in ERROR. Open the run inspector for step-level details.");
+          router.push(`/runs/${run.id}`);
           router.refresh();
           return;
         }

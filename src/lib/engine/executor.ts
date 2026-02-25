@@ -273,11 +273,41 @@ export async function executeRun(runId: string) {
     return runRecord;
   }
 
+  if (runRecord.status === RunStatus.RUNNING) {
+    return runRecord;
+  }
+
+  if (runRecord.status === RunStatus.ERROR && runRecord.steps.length > 0) {
+    return runRecord;
+  }
+
   if (!runRecord.userMessage) {
     throw new Error("Run has no user message to execute");
   }
 
   const trace = newTrace(runId);
+  const claim = await prisma.run.updateMany({
+    where: {
+      id: runId,
+      status: RunStatus.PENDING
+    },
+    data: {
+      status: RunStatus.RUNNING
+    }
+  });
+
+  if (claim.count === 0) {
+    const latest = await prisma.run.findUnique({
+      where: { id: runId },
+      include: { steps: true, artifacts: true, session: true, userMessage: true }
+    });
+
+    if (!latest) {
+      throw new Error("Run not found after execute claim");
+    }
+
+    return latest;
+  }
 
   const cpir = cpirSchema.parse(runRecord.cpirJson);
   const run = buildRun({
@@ -291,15 +321,6 @@ export async function executeRun(runId: string) {
 
   const plan = planSteps(run);
   const stepRecordIds = await materializePlan(runId, plan);
-
-  await prisma.run.update({
-    where: {
-      id: runId
-    },
-    data: {
-      status: RunStatus.RUNNING
-    }
-  });
 
   const completed = new Set<string>();
   const started = new Set<string>();
@@ -435,8 +456,22 @@ export async function executeRun(runId: string) {
           content: finalAnswer
         }
       }),
-      prisma.memoryItem.create({
-        data: {
+      prisma.memoryItem.upsert({
+        where: {
+          sessionId_key: {
+            sessionId: runRecord.sessionId,
+            key: `run-${runId}-summary`
+          }
+        },
+        update: {
+          value: asInputJson({
+            summary: finalAnswer.slice(0, 260)
+          }),
+          confidence: 0.5,
+          enabled: true,
+          sourceRunId: runId
+        },
+        create: {
           sessionId: runRecord.sessionId,
           type: "FACT",
           key: `run-${runId}-summary`,
@@ -478,7 +513,9 @@ export async function executeRun(runId: string) {
     const runningSteps = await prisma.step.findMany({
       where: {
         runId,
-        status: StepStatus.RUNNING
+        status: {
+          in: [StepStatus.RUNNING, StepStatus.PENDING]
+        }
       }
     });
 
