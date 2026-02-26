@@ -44,7 +44,7 @@ export const modelCatalog: ModelCatalogEntry[] = [
   },
   {
     provider: "anthropic",
-    modelId: "claude-3-5-sonnet",
+    modelId: "claude-sonnet-4-20250514",
     qualityTier: 5,
     costTier: 4,
     speedTier: 4,
@@ -54,13 +54,13 @@ export const modelCatalog: ModelCatalogEntry[] = [
   },
   {
     provider: "google",
-    modelId: "gemini-1.5-pro",
+    modelId: "gemini-2.5-flash",
     qualityTier: 4,
-    costTier: 3,
-    speedTier: 4,
+    costTier: 2,
+    speedTier: 5,
     supportsJson: true,
-    inputUsdPer1k: 0.00125,
-    outputUsdPer1k: 0.005
+    inputUsdPer1k: 0.00035,
+    outputUsdPer1k: 0.001
   },
   {
     provider: "mistral",
@@ -135,7 +135,7 @@ export function getDefaultCompareModels(): ModelCatalogEntry[] {
     }
   }
 
-  return ["gpt-4o-mini", "gpt-4.1-mini", "mock-analyst"]
+  return ["gpt-4o-mini", "claude-sonnet-4-20250514", "gemini-2.5-flash"]
     .map((id) => getModelById(id))
     .filter((item): item is ModelCatalogEntry => Boolean(item));
 }

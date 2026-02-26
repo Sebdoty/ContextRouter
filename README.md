@@ -64,24 +64,26 @@ Open [http://localhost:3000](http://localhost:3000).
 - Prisma migrate: `npm run prisma:migrate`
 - Prisma db push: `npm run prisma:push`
 
-## Mock Mode vs OpenAI Mode
+## Mock Mode vs Real Providers
 ### Mock (default)
 - Keep `DEMO_MODE="true"` (default in `.env.example`), or omit `OPENAI_API_KEY`.
 - App runs fully with deterministic mock responses.
 
-### OpenAI
+### OpenAI + Anthropic + Gemini
 1. Set:
 ```bash
 OPENAI_API_KEY="your_key"
+ANTHROPIC_API_KEY="your_key"
+GEMINI_API_KEY="your_key"
 DEMO_MODE="false"
 ```
 2. Optional model configuration:
 ```bash
 OPENAI_DEFAULT_MODEL_ID="gpt-4o-mini"
-OPENAI_COMPARE_MODEL_IDS="gpt-4o-mini,gpt-4.1-mini,gpt-4.1"
+OPENAI_COMPARE_MODEL_IDS="gpt-4o-mini,claude-sonnet-4-20250514,gemini-2.5-flash"
 ```
 
-If OpenAI requests fail, provider adapter falls back to mock responses so runs still complete.
+If any provider request fails, adapter logic falls back to mock responses so runs still complete.
 
 ## API Endpoints
 - `POST /api/sessions`
